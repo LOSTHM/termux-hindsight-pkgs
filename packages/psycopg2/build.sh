@@ -10,6 +10,11 @@ TERMUX_PKG_DEPENDS="python, python-pip"
 TERMUX_PKG_BUILD_DEPENDS="postgresql"
 TERMUX_PKG_PYTHON_COMMON_BUILD_DEPS="wheel"
 TERMUX_PKG_BUILD_IN_SRC=true
+
+# same -lm necessity as asyncpg (psycopg2 C code uses math functions)
+termux_step_pre_configure() {
+	export LDFLAGS="$LDFLAGS -lm"
+}
 # skip default make (repo Makefiles often have lint targets needing host tools);
 # pip/cross-pip install performs the actual build
 termux_step_make() {

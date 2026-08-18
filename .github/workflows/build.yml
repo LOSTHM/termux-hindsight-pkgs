@@ -26,10 +26,7 @@ jobs:
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/termux/termux-packages.git upstream
           cd upstream
-          git sparse-checkout set packages scripts ndk-patches
-          # repo.json declares root-packages/x11-packages channels; buildorder
-          # only requires the dirs to exist (empty is fine)
-          mkdir -p root-packages x11-packages
+          git sparse-checkout set packages scripts ndk-patches root-packages x11-packages
           # overlay our custom recipes on top of upstream (overwrite/add)
           cp -r ../packages/* packages/
 

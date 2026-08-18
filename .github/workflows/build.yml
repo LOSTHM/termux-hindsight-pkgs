@@ -92,6 +92,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.package }}
-          path: upstream/debs/*.deb
+          path: upstream/output/*.deb
           if-no-files-found: warn
           retention-days: 14

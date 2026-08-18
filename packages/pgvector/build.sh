@@ -9,14 +9,20 @@ TERMUX_PKG_SHA256=10bf9938906e5d643bbc4a7eea104b6f57ba4898e5b76b20e60484ea1d5a7f
 TERMUX_PKG_DEPENDS="postgresql"
 TERMUX_PKG_BUILD_IN_SRC=true
 
+# vector.so calls acos/log etc.: bionic needs explicit -lm
+termux_step_pre_configure() {
+	export LDFLAGS="$LDFLAGS -lm"
+}
+
 termux_step_make() {
 	# OPTFLAGS="" → portable build; default -march=native is rejected by
 	# clang (termux CC) with "unsupported argument 'native'"
 	make PG_CONFIG=$TERMUX_PREFIX/bin/pg_config \
 		OPTFLAGS="" \
+		LDFLAGS="$LDFLAGS" \
 		-j"${TERMUX_PKG_MAKE_PROCESSES}"
 }
 
 termux_step_make_install() {
-	make PG_CONFIG=$TERMUX_PREFIX/bin/pg_config OPTFLAGS="" install
+	make PG_CONFIG=$TERMUX_PREFIX/bin/pg_config OPTFLAGS="" LDFLAGS="$LDFLAGS" install
 }

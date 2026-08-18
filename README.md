@@ -11,6 +11,7 @@ aarch64 的 .deb。
 
 | 包 | 版本 | 构建类型 |
 |----|------|----------|
+| greenlet | 3.3.2 | Cython/C（版本锁 <3.4.0，官方 3.5.x 不满足，必须自编） |
 | tiktoken | 0.14.0 | setuptools-rust (PyO3) |
 | watchfiles | 1.2.0 | maturin (PyO3) |
 | uvloop | 0.22.1 | Cython |
@@ -19,7 +20,9 @@ aarch64 的 .deb。
 | psycopg2 | 2.9.12 | C + libpq (依赖 postgresql) |
 | pgvector | 0.8.6 | PostgreSQL 扩展 (依赖 postgresql) |
 
-注：python-greenlet 和 postgresql 官方仓库已有，直接 `pkg install`。
+注：postgresql 官方仓库已有，直接 `pkg install`。greenlet 特殊情况：
+hindsight-api-slim 要求 `greenlet>=3.2.4,<3.4.0`，termux 官方 python-greenlet
+是 3.5.x 越界，必须装本仓库编的 3.3.2。
 
 ## 使用
 

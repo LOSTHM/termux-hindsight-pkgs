@@ -11,41 +11,44 @@ on:
     paths:
       - 'packages/**'
       - '.github/workflows/**'
-      - 'scripts/**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch upstream termux-packages (recipes + build scripts)
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/termux/termux-packages.git upstream
+          cd upstream
+          git sparse-checkout set packages scripts
+          # overlay our custom recipes on top of upstream (overwrite/add)
+          cp -r ../packages/* packages/
 
       - name: Build packages for aarch64
         run: |
           set -euo pipefail
-          if [ -n "${{ github.event.inputs.packages }}" ]; then
-            PKGS="${{ github.event.inputs.packages }}"
-          else
-            PKGS="tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector"
-          fi
+          PKGS="${{ github.event.inputs.packages }}"
+          : "${PKGS:=tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector}"
           PKGS=$(echo "$PKGS" | tr ',' ' ')
           echo "Building: $PKGS"
+          cd upstream
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 $PKGS
 
       - name: List artifacts
         if: always()
         run: |
           echo "=== debs ==="
-          ls -la debs/ 2>/dev/null || echo "(no debs directory)"
-          echo "=== package dir ==="
-          ls -la packages/*/  2>/dev/null | head -40
+          ls -la upstream/debs/ 2>/dev/null || echo "(no debs directory)"
 
       - name: Upload debs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: termux-aarch64-debs
-          path: debs/*.deb
+          path: upstream/debs/*.deb
           if-no-files-found: warn
           retention-days: 14
 
@@ -55,7 +58,7 @@ jobs:
         with:
           name: build-logs
           path: |
-            ~/.termux-build/**/*.log
+            upstream/debs/*.log
             **/*.log
           if-no-files-found: warn
           retention-days: 7

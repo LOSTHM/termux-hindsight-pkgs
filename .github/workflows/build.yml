@@ -87,11 +87,22 @@ jobs:
           export TERMUX_BUILDER_IMAGE_NAME=ghcr.io/termux/package-builder:python-toolchain
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 ${{ matrix.package }}
 
+      - name: Collect own deb
+        run: |
+          # copy only this package's deb (output/ also holds dependency-chain
+          # debs like libcap-ng-static_2:0.9.3 — colon in filename breaks
+          # upload-artifact)
+          mkdir -p own-debs
+          cp upstream/output/${PACKAGE}_*.deb own-debs/ 2>/dev/null || echo "no deb for ${PACKAGE}"
+          ls -la own-debs/
+        env:
+          PACKAGE: ${{ matrix.package }}
+
       - name: Upload deb for ${{ matrix.package }}
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.package }}
-          path: upstream/output/*.deb
+          path: own-debs/*.deb
           if-no-files-found: warn
           retention-days: 14

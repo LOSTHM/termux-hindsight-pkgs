@@ -7,6 +7,9 @@ on:
         description: 'Packages to build (comma separated)'
         required: false
         default: 'tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector'
+        # NOTE: greenlet deliberately excluded — a 'greenlet' deb would collide
+        # with official python-greenlet files; compile greenlet==3.3.2 locally
+        # via pip instead (pure C, minutes).
   push:
     paths:
       - 'packages/**'
@@ -24,6 +27,9 @@ jobs:
           git clone --depth 1 --filter=blob:none --sparse https://github.com/termux/termux-packages.git upstream
           cd upstream
           git sparse-checkout set packages scripts
+          # repo.json declares root-packages/x11-packages channels; buildorder
+          # only requires the dirs to exist (empty is fine)
+          mkdir -p root-packages x11-packages
           # overlay our custom recipes on top of upstream (overwrite/add)
           cp -r ../packages/* packages/
 

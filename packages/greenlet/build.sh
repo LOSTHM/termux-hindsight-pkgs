@@ -11,3 +11,8 @@ TERMUX_PKG_PYTHON_COMMON_BUILD_DEPS="wheel"
 TERMUX_PKG_BUILD_IN_SRC=true
 # NOTE: pinned to 3.3.2 because hindsight-api-slim requires greenlet>=3.2.4,<3.4.0;
 #  official termux python-greenlet (3.5.x) does NOT satisfy the upper bound.
+# skip default make (repo Makefiles often have lint targets needing host tools);
+# pip/cross-pip install performs the actual build
+termux_step_make() {
+	:
+}

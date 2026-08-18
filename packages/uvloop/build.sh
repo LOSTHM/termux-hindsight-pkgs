@@ -9,3 +9,8 @@ TERMUX_PKG_SHA256=6c84bae345b9147082b17371e3dd5d42775bddce91f885499017f4607fdaf3
 TERMUX_PKG_DEPENDS="python, python-pip"
 TERMUX_PKG_PYTHON_COMMON_BUILD_DEPS="'Cython~=3.0'"
 TERMUX_PKG_BUILD_IN_SRC=true
+# skip default make (repo Makefiles often have lint targets needing host tools);
+# pip/cross-pip install performs the actual build
+termux_step_make() {
+	:
+}

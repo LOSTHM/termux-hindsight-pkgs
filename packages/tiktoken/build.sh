@@ -17,3 +17,8 @@ termux_step_post_configure() {
 	export CARGO_BUILD_TARGET=${CARGO_TARGET_NAME}
 	export PYO3_CROSS_LIB_DIR=$TERMUX_PREFIX/lib
 }
+# skip default make (repo Makefiles often have lint targets needing host tools);
+# pip/cross-pip install performs the actual build
+termux_step_make() {
+	:
+}

@@ -18,6 +18,12 @@ termux_step_configure() {
 	export CFLAGS_${CARGO_TARGET_NAME//-/_}+=" -I$TERMUX_PREFIX/include/python$TERMUX_PYTHON_VERSION"
 }
 
+# default make runs the repo Makefile's lint target (uv run ruff) — skip it;
+# cross-pip install below performs the actual build
+termux_step_make() {
+	:
+}
+
 termux_step_make_install() {
 	# Needed by maturin
 	export ANDROID_API_LEVEL="$TERMUX_PKG_API_LEVEL"

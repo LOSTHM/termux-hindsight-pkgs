@@ -10,10 +10,13 @@ TERMUX_PKG_DEPENDS="postgresql"
 TERMUX_PKG_BUILD_IN_SRC=true
 
 termux_step_make() {
+	# OPTFLAGS="" → portable build; default -march=native is rejected by
+	# clang (termux CC) with "unsupported argument 'native'"
 	make PG_CONFIG=$TERMUX_PREFIX/bin/pg_config \
+		OPTFLAGS="" \
 		-j"${TERMUX_PKG_MAKE_PROCESSES}"
 }
 
 termux_step_make_install() {
-	make PG_CONFIG=$TERMUX_PREFIX/bin/pg_config install
+	make PG_CONFIG=$TERMUX_PREFIX/bin/pg_config OPTFLAGS="" install
 }

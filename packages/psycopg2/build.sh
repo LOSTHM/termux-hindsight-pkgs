@@ -14,6 +14,9 @@ TERMUX_PKG_BUILD_IN_SRC=true
 # same -lm necessity as asyncpg (psycopg2 C code uses math functions)
 termux_step_pre_configure() {
 	export LDFLAGS="$LDFLAGS -lm"
+	# cross-pip env PATH lacks $TERMUX_PREFIX/bin; psycopg2's setup.py
+	# requires pg_config to be resolvable from PATH
+	export PATH="$TERMUX_PREFIX/bin:$PATH"
 }
 # skip default make (repo Makefiles often have lint targets needing host tools);
 # pip/cross-pip install performs the actual build

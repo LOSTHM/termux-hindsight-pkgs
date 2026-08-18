@@ -7,61 +7,91 @@ on:
         description: 'Packages to build (comma separated)'
         required: false
         default: 'tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector'
-        # NOTE: greenlet deliberately excluded — a 'greenlet' deb would collide
-        # with official python-greenlet files; compile greenlet==3.3.2 locally
-        # via pip instead (pure C, minutes).
   push:
     paths:
       - 'packages/**'
       - '.github/workflows/**'
 
+env:
+  PKG_LIST: tiktoken watchfiles uvloop httptools asyncpg psycopg2 pgvector
+
 jobs:
-  build:
+  # Build the python toolchain (python + python-pip + full dep chain) once,
+  # commit the builder container state, and publish it as an artifact.
+  # Subsequent per-package jobs restore this image and only build their own
+  # package — avoiding the ~17min python chain rebuild inside the runner's
+  # ~21min lifetime.
+  warmup:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch upstream termux-packages (recipes + build scripts)
+      - name: Fetch upstream termux-packages
         run: |
           git clone --depth 1 --filter=blob:none --sparse https://github.com/termux/termux-packages.git upstream
           cd upstream
           git sparse-checkout set packages scripts ndk-patches root-packages x11-packages
-          # overlay our custom recipes on top of upstream (overwrite/add)
           cp -r ../packages/* packages/
 
-      - name: Build packages for aarch64
+      - name: Build python toolchain (python + python-pip)
         run: |
-          set -euo pipefail
-          PKGS="${{ github.event.inputs.packages }}"
-          : "${PKGS:=tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector}"
-          PKGS=$(echo "$PKGS" | tr ',' ' ')
-          echo "Building: $PKGS"
           cd upstream
-          ./scripts/run-docker.sh ./build-package.sh -a aarch64 $PKGS
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 python python-pip
 
-      - name: List artifacts
-        if: always()
+      - name: Commit builder container state
         run: |
-          echo "=== debs ==="
-          ls -la upstream/debs/ 2>/dev/null || echo "(no debs directory)"
+          docker commit termux-package-builder ghcr.io/termux/package-builder:python-toolchain
+          docker save ghcr.io/termux/package-builder:python-toolchain | zstd -T0 -3 -o /tmp/toolchain.tar.zst
+          ls -la /tmp/toolchain.tar.zst
 
-      - name: Upload debs
+      - name: Upload toolchain image
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-image
+          path: /tmp/toolchain.tar.zst
+          retention-days: 3
+
+  build:
+    needs: warmup
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [tiktoken, watchfiles, uvloop, httptools, asyncpg, psycopg2, pgvector]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore toolchain image
+        uses: actions/download-artifact@v4
+        with:
+          name: toolchain-image
+          path: /tmp/
+
+      - name: Load toolchain image
+        run: |
+          zstd -d -f /tmp/toolchain.tar.zst -o /tmp/toolchain.tar
+          docker load -i /tmp/toolchain.tar
+
+      - name: Fetch upstream termux-packages
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/termux/termux-packages.git upstream
+          cd upstream
+          git sparse-checkout set packages scripts ndk-patches root-packages x11-packages
+          cp -r ../packages/* packages/
+
+      - name: Build ${{ matrix.package }}
+        run: |
+          cd upstream
+          export TERMUX_BUILDER_IMAGE_NAME=ghcr.io/termux/package-builder:python-toolchain
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 ${{ matrix.package }}
+
+      - name: Upload deb for ${{ matrix.package }}
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: termux-aarch64-debs
+          name: deb-${{ matrix.package }}
           path: upstream/debs/*.deb
           if-no-files-found: warn
           retention-days: 14
-
-      - name: Upload build logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            upstream/debs/*.log
-            **/*.log
-          if-no-files-found: warn
-          retention-days: 7

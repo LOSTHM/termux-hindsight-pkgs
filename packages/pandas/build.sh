@@ -19,8 +19,17 @@ termux_step_pre_configure() {
 	# meson >=1.14 rejects empty string 'deps' -> replace all occurrences
 	find "$TERMUX_PKG_SRCDIR" -name meson.build -exec \
 		sed -i "s/ext_dict\.get('deps', '')/ext_dict.get('deps', [])/g" {} +
-	# ensure cython (from crossenv) is findable during ninja builds
+	# pandas' ninja custom commands run with HOST python3 (/usr/bin/python3)
+	# (e.g. generate_pxi.py -> `from Cython import Tempita`); install Cython
+	# into the host python so those probes/build steps work.
 	export PATH="$TERMUX_PREFIX/bin:$PATH"
+	if /usr/bin/python3 -c "import Cython" 2>/dev/null; then
+		echo "==> host python3 has Cython"
+	else
+		echo "==> installing Cython into host python3"
+		/usr/bin/python3 -m pip install --break-system-packages Cython \
+			|| echo "==> host pip install FAILED (continuing)"
+	fi
 }
 
 termux_step_make() {

@@ -2,6 +2,8 @@ name: build-one
 
 # Build a SINGLE package reusing the latest toolchain-image artifact from
 # build.yml (warmup job) — no 17min python toolchain rebuild.
+# For packages that need python-numpy (pandas etc.), pre-installs it in the
+# builder container to avoid recursive openblas compilation (~40min).
 on:
   workflow_dispatch:
     inputs:
@@ -60,10 +62,18 @@ jobs:
           mkdir -p root-packages x11-packages
           cp -r ../packages/* packages/
 
+      - name: Create builder container and pre-install python-numpy
+        run: |
+          cd upstream
+          export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
+          # create container via run-docker (no-op command)
+          ./scripts/run-docker.sh true 2>&1 | tail -5
+          # pre-install python-numpy (avoids ~40min recursive openblas build)
+          docker exec termux-package-builder pkg install -y python-numpy 2>&1 | tail -5
+
       - name: Build ${{ github.event.inputs.package }}
         run: |
           cd upstream
-          echo "=== building with image: ${IMAGE_TAG} ==="
           export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
           ./scripts/run-docker.sh ./build-package.sh -a aarch64 ${{ github.event.inputs.package }}
 

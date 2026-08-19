@@ -27,9 +27,6 @@ termux_step_pre_configure() {
 		/usr/bin/python3 -m pip install --break-system-packages Cython \
 			|| echo "==> host pip install FAILED (continuing)"
 	fi
-	# hardcode numpy include path (meson probes np.get_include() via host python3)
-	sed -i "s|incdir_numpy = run_command(.*|incdir_numpy = '/data/data/com.termux/files/usr/lib/python3.14/site-packages/numpy/_core/include'|" \
-		"$TERMUX_PKG_SRCDIR/pandas/meson.build" 2>/dev/null || true
 }
 
 termux_step_make() {

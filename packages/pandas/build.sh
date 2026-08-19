@@ -19,7 +19,7 @@ termux_step_pre_configure() {
 	# pandas' meson probes run with HOST python3 (/usr/bin/python3):
 	# numpy include detection (`np.get_include()`) and build-machine cython.
 	# Install both into host python (x86_64 ubuntu, fast wheels).
-	/usr/bin/python3 -m pip install --quiet numpy cython
+	/usr/bin/python3 -m pip install --quiet --break-system-packages numpy cython
 }
 
 termux_step_make() {

@@ -79,11 +79,8 @@ jobs:
         run: |
           cd upstream
           export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
-          # pre-install python-numpy in the same container session, then build
-          ./scripts/run-docker.sh bash -c "
-            /data/data/com.termux/files/usr/bin/pkg install -y python-numpy &&
-            ./build-package.sh -a aarch64 ${{ github.event.inputs.package }}
-          "
+          # let the build system recurse: openblas -> python-numpy -> pandas
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 ${{ github.event.inputs.package }}
 
       - name: Collect own deb
         run: |

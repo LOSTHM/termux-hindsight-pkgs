@@ -15,11 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set lowercase repo name for docker
+        run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Pull toolchain image from ghcr.io (fast, no artifact download)
         run: |
           echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin 2>/dev/null || true
-          if docker pull ghcr.io/${{ github.repository }}/toolchain:latest 2>/dev/null; then
-            echo "IMAGE_TAG=ghcr.io/${{ github.repository }}/toolchain:latest" >> "$GITHUB_ENV"
+          if docker pull ghcr.io/${{ env.REPO_LC }}/toolchain:latest 2>/dev/null; then
+            echo "IMAGE_TAG=ghcr.io/${{ env.REPO_LC }}/toolchain:latest" >> "$GITHUB_ENV"
             echo "TOOLCHAIN_READY=true" >> "$GITHUB_ENV"
             echo "Loaded toolchain image from ghcr.io"
           fi
@@ -51,7 +54,7 @@ jobs:
           if [ -f /tmp/toolchain.tar.zst ] && [ -s /tmp/toolchain.tar.zst ]; then
             zstd -d -f /tmp/toolchain.tar.zst -o /tmp/toolchain.tar && \
             docker load -i /tmp/toolchain.tar
-            echo "IMAGE_TAG=ghcr.io/${{ github.repository }}/toolchain:latest" >> "$GITHUB_ENV"
+            echo "IMAGE_TAG=ghcr.io/${{ env.REPO_LC }}/toolchain:latest" >> "$GITHUB_ENV"
             echo "TOOLCHAIN_READY=true" >> "$GITHUB_ENV"
           fi
 

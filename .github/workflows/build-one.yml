@@ -74,7 +74,7 @@ jobs:
           cd upstream
           export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
           ./scripts/run-docker.sh true 2>&1 | tail -5
-          docker exec termux-package-builder pkg install -y python-numpy 2>&1 | tail -5
+          docker exec termux-package-builder /data/data/com.termux/files/usr/bin/pkg install -y python-numpy 2>&1 | tail -5
 
       - name: Build ${{ github.event.inputs.package }}
         run: |

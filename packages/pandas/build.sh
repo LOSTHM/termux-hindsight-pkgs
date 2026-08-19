@@ -15,6 +15,13 @@ TERMUX_PKG_PYTHON_COMMON_BUILD_DEPS="meson-python, 'Cython>=3.0', versioneer"
 # (no Makefile targets needed; cross-pip handles the meson build).
 # meson.build's generate_version.py needs host versioneer — patched away
 # (meson-build-fixed-version.patch) so no host python dependency.
+termux_step_pre_configure() {
+	# pandas' meson probes run with HOST python3 (/usr/bin/python3):
+	# numpy include detection (`np.get_include()`) and build-machine cython.
+	# Install both into host python (x86_64 ubuntu, fast wheels).
+	/usr/bin/python3 -m pip install --quiet numpy cython
+}
+
 termux_step_make() {
 	:
 }

@@ -6,7 +6,7 @@ on:
       packages:
         description: 'Packages to build (comma separated)'
         required: false
-        default: 'tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector'
+        default: 'tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector,pandas'
   push:
     paths:
       - 'packages/**'
@@ -59,7 +59,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [tiktoken, watchfiles, uvloop, httptools, asyncpg, psycopg2, pgvector]
+        # workflow_dispatch inputs.packages controls exactly which packages run;
+        # push triggers build the full default list
+        package: ${{ fromJSON( format('["{0}"]', join(split( coalesce( github.event.inputs.packages, 'tiktoken,watchfiles,uvloop,httptools,asyncpg,psycopg2,pgvector,pandas' ), ',' ), '","') ) ) }}
     steps:
       - uses: actions/checkout@v4
 

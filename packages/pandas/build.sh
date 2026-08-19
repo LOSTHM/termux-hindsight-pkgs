@@ -19,6 +19,8 @@ termux_step_pre_configure() {
 	# meson >=1.14 rejects empty string 'deps' -> replace all occurrences
 	find "$TERMUX_PKG_SRCDIR" -name meson.build -exec \
 		sed -i "s/ext_dict\.get('deps', '')/ext_dict.get('deps', [])/g" {} +
+	# ensure cython (from crossenv) is findable during ninja builds
+	export PATH="$TERMUX_PREFIX/bin:$PATH"
 }
 
 termux_step_make() {

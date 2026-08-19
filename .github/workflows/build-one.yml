@@ -1,0 +1,65 @@
+name: build-one
+
+# Build a SINGLE package reusing the latest toolchain-image artifact from
+# build.yml (warmup job) — no 17min python toolchain rebuild.
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to build'
+        required: true
+        default: 'pandas'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore toolchain image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: toolchain-image
+          path: /tmp/
+        # if no artifact exists, warmup must be run once via build.yml first
+        continue-on-error: true
+
+      - name: Load toolchain image or fall back to base
+        run: |
+          if [ -s /tmp/toolchain.tar.zst ]; then
+            zstd -d -f /tmp/toolchain.tar.zst -o /tmp/toolchain.tar
+            docker load -i /tmp/toolchain.tar
+            echo "IMAGE_TAG=ghcr.io/termux/package-builder:python-toolchain" >> "$GITHUB_ENV"
+          else
+            echo "IMAGE_TAG=ghcr.io/termux/package-builder:latest" >> "$GITHUB_ENV"
+          fi
+
+      - name: Fetch upstream termux-packages
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/termux/termux-packages.git upstream
+          cd upstream
+          git sparse-checkout set packages scripts ndk-patches root-packages x11-packages
+          cp -r ../packages/* packages/
+
+      - name: Build ${{ github.event.inputs.package }}
+        run: |
+          cd upstream
+          echo "=== building with image: ${IMAGE_TAG} ==="
+          export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
+          ./scripts/run-docker.sh ./build-package.sh -a aarch64 ${{ github.event.inputs.package }}
+
+      - name: Collect own deb
+        run: |
+          mkdir -p own-debs
+          cp upstream/output/${{ github.event.inputs.package }}_*.deb own-debs/ 2>/dev/null || echo "no deb for ${{ github.event.inputs.package }}"
+          ls -la own-debs/
+
+      - name: Upload deb
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ github.event.inputs.package }}
+          path: own-debs/*.deb
+          if-no-files-found: warn
+          retention-days: 14

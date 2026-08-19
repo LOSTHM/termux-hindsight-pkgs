@@ -77,7 +77,7 @@ jobs:
           ./scripts/run-docker.sh bash -c "
             /data/data/com.termux/files/usr/bin/pkg install -y python-numpy &&
             ./build-package.sh -a aarch64 ${{ github.event.inputs.package }}
-          " 2>&1 | tail -20
+          "
 
       - name: Collect own deb
         run: |

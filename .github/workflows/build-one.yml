@@ -54,6 +54,9 @@ jobs:
           if [ -f /tmp/toolchain.tar.zst ] && [ -s /tmp/toolchain.tar.zst ]; then
             zstd -d -f /tmp/toolchain.tar.zst -o /tmp/toolchain.tar && \
             docker load -i /tmp/toolchain.tar
+            # docker load restores the original tag (ghcr.io/termux/package-builder:python-toolchain);
+            # tag it to our ghcr.io path for use (won't exist upstream yet, but local tag works)
+            docker tag ghcr.io/termux/package-builder:python-toolchain ghcr.io/${{ env.REPO_LC }}/toolchain:latest 2>/dev/null || true
             echo "IMAGE_TAG=ghcr.io/${{ env.REPO_LC }}/toolchain:latest" >> "$GITHUB_ENV"
             echo "TOOLCHAIN_READY=true" >> "$GITHUB_ENV"
           fi

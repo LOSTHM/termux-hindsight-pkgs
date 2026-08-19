@@ -69,18 +69,15 @@ jobs:
           mkdir -p root-packages x11-packages
           cp -r ../packages/* packages/
 
-      - name: Create builder container and pre-install python-numpy
-        run: |
-          cd upstream
-          export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
-          ./scripts/run-docker.sh true 2>&1 | tail -5
-          docker exec termux-package-builder /data/data/com.termux/files/usr/bin/pkg install -y python-numpy 2>&1 | tail -5
-
       - name: Build ${{ github.event.inputs.package }}
         run: |
           cd upstream
           export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
-          ./scripts/run-docker.sh ./build-package.sh -a aarch64 ${{ github.event.inputs.package }}
+          # pre-install python-numpy in the same container session, then build
+          ./scripts/run-docker.sh bash -c "
+            /data/data/com.termux/files/usr/bin/pkg install -y python-numpy &&
+            ./build-package.sh -a aarch64 ${{ github.event.inputs.package }}
+          " 2>&1 | tail -20
 
       - name: Collect own deb
         run: |

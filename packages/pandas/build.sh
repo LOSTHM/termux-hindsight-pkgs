@@ -15,6 +15,12 @@ TERMUX_PKG_PYTHON_COMMON_BUILD_DEPS="meson-python, 'Cython>=3.0', versioneer"
 # host python (generate_version.py + np.get_include) are patched away:
 #   meson-build-fixed-version.patch   -> version hardcoded
 #   pandas-meson-numpy-path.patch     -> numpy include path hardcoded
+termux_step_pre_configure() {
+	# meson >=1.14 rejects empty string 'deps' -> replace all occurrences
+	find "$TERMUX_PKG_SRCDIR" -name meson.build -exec \
+		sed -i "s/ext_dict\.get('deps', '')/ext_dict.get('deps', [])/g" {} +
+}
+
 termux_step_make() {
 	:
 }

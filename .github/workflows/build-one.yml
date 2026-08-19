@@ -1,9 +1,5 @@
 name: build-one
 
-# Build a SINGLE package reusing the latest toolchain-image artifact from
-# build.yml (warmup job) — no 17min python toolchain rebuild.
-# For packages that need python-numpy (pandas etc.), pre-installs it in the
-# builder container to avoid recursive openblas compilation (~40min).
 on:
   workflow_dispatch:
     inputs:
@@ -19,8 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Pull toolchain image from ghcr.io (fast, no artifact download)
+        run: |
+          echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin 2>/dev/null || true
+          if docker pull ghcr.io/${{ github.repository }}/toolchain:latest 2>/dev/null; then
+            echo "IMAGE_TAG=ghcr.io/${{ github.repository }}/toolchain:latest" >> "$GITHUB_ENV"
+            echo "TOOLCHAIN_READY=true" >> "$GITHUB_ENV"
+            echo "Loaded toolchain image from ghcr.io"
+          fi
+
       - name: Find latest toolchain artifact run-id
-        id: find-artifact
+        if: env.TOOLCHAIN_READY != 'true'
         run: |
           JSON=$(curl -s -H "Authorization: Bearer ${{ github.token }}" \
             "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?name=toolchain-image&per_page=1")
@@ -28,12 +33,10 @@ jobs:
           if [ -n "$RUN_ID" ]; then
             echo "TOOLCHAIN_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
             echo "Found toolchain artifact from run $RUN_ID"
-          else
-            echo "No toolchain artifact found; will use base builder image"
           fi
 
-      - name: Restore toolchain image artifact
-        if: env.TOOLCHAIN_RUN_ID != ''
+      - name: Download fallback artifact
+        if: env.TOOLCHAIN_READY != 'true' && env.TOOLCHAIN_RUN_ID != ''
         uses: actions/download-artifact@v4
         with:
           name: toolchain-image
@@ -42,17 +45,21 @@ jobs:
           github-token: ${{ github.token }}
           path: /tmp/
 
-      - name: Load toolchain image or fall back to base
+      - name: Load fallback image
+        if: env.TOOLCHAIN_READY != 'true' && env.TOOLCHAIN_RUN_ID != ''
         run: |
           if [ -f /tmp/toolchain.tar.zst ] && [ -s /tmp/toolchain.tar.zst ]; then
             zstd -d -f /tmp/toolchain.tar.zst -o /tmp/toolchain.tar && \
             docker load -i /tmp/toolchain.tar
-            echo "IMAGE_TAG=ghcr.io/termux/package-builder:python-toolchain" >> "$GITHUB_ENV"
-            echo "Loaded toolchain image from artifact"
-          else
-            echo "IMAGE_TAG=ghcr.io/termux/package-builder:latest" >> "$GITHUB_ENV"
-            echo "Using base builder image (no toolchain cache)"
+            echo "IMAGE_TAG=ghcr.io/${{ github.repository }}/toolchain:latest" >> "$GITHUB_ENV"
+            echo "TOOLCHAIN_READY=true" >> "$GITHUB_ENV"
           fi
+
+      - name: Fallback base builder
+        if: env.TOOLCHAIN_READY != 'true'
+        run: |
+          echo "IMAGE_TAG=ghcr.io/termux/package-builder:latest" >> "$GITHUB_ENV"
+          echo "TOOLCHAIN_READY=true" >> "$GITHUB_ENV"
 
       - name: Fetch upstream termux-packages
         run: |
@@ -66,9 +73,7 @@ jobs:
         run: |
           cd upstream
           export TERMUX_BUILDER_IMAGE_NAME="${IMAGE_TAG}"
-          # create container via run-docker (no-op command)
           ./scripts/run-docker.sh true 2>&1 | tail -5
-          # pre-install python-numpy (avoids ~40min recursive openblas build)
           docker exec termux-package-builder pkg install -y python-numpy 2>&1 | tail -5
 
       - name: Build ${{ github.event.inputs.package }}

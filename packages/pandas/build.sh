@@ -11,17 +11,10 @@ TERMUX_PKG_PYTHON_COMMON_BUILD_DEPS="meson-python, 'Cython>=3.0', versioneer"
 # NOTE: no TERMUX_PKG_BUILD_IN_SRC — meson-python rejects source==build dir
 
 # pandas sdist builds with meson-python + Cython; numpy comes from the
-# termux python-numpy package (headers + runtime). Skip default make step
-# (no Makefile targets needed; cross-pip handles the meson build).
-# meson.build's generate_version.py needs host versioneer — patched away
-# (meson-build-fixed-version.patch) so no host python dependency.
-termux_step_pre_configure() {
-	# pandas' meson probes run with HOST python3 (/usr/bin/python3):
-	# numpy include detection (`np.get_include()`) and build-machine cython.
-	# Install both into host python (x86_64 ubuntu, fast wheels).
-	/usr/bin/python3 -m pip install --quiet --break-system-packages numpy cython
-}
-
+# termux python-numpy package (headers + runtime). Meson probes that need
+# host python (generate_version.py + np.get_include) are patched away:
+#   meson-build-fixed-version.patch   -> version hardcoded
+#   pandas-meson-numpy-path.patch     -> numpy include path hardcoded
 termux_step_make() {
 	:
 }

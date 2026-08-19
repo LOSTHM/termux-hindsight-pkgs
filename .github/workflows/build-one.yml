@@ -17,22 +17,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Find latest toolchain artifact run-id
+        id: find-artifact
+        run: |
+          JSON=$(curl -s -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?name=toolchain-image&per_page=1")
+          RUN_ID=$(echo "$JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('artifacts',[{}])[0].get('workflow_run',{}).get('id','') or '')")
+          if [ -n "$RUN_ID" ]; then
+            echo "TOOLCHAIN_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+            echo "Found toolchain artifact from run $RUN_ID"
+          else
+            echo "No toolchain artifact found; will use base builder image"
+          fi
+
       - name: Restore toolchain image artifact
+        if: env.TOOLCHAIN_RUN_ID != ''
         uses: actions/download-artifact@v4
         with:
           name: toolchain-image
+          repository: ${{ github.repository }}
+          run-id: ${{ env.TOOLCHAIN_RUN_ID }}
+          github-token: ${{ github.token }}
           path: /tmp/
-        # if no artifact exists, warmup must be run once via build.yml first
-        continue-on-error: true
 
       - name: Load toolchain image or fall back to base
         run: |
-          if [ -s /tmp/toolchain.tar.zst ]; then
-            zstd -d -f /tmp/toolchain.tar.zst -o /tmp/toolchain.tar
+          if [ -f /tmp/toolchain.tar.zst ] && [ -s /tmp/toolchain.tar.zst ]; then
+            zstd -d -f /tmp/toolchain.tar.zst -o /tmp/toolchain.tar && \
             docker load -i /tmp/toolchain.tar
             echo "IMAGE_TAG=ghcr.io/termux/package-builder:python-toolchain" >> "$GITHUB_ENV"
+            echo "Loaded toolchain image from artifact"
           else
             echo "IMAGE_TAG=ghcr.io/termux/package-builder:latest" >> "$GITHUB_ENV"
+            echo "Using base builder image (no toolchain cache)"
           fi
 
       - name: Fetch upstream termux-packages
@@ -40,6 +57,7 @@ jobs:
           git clone --depth 1 --filter=blob:none --sparse https://github.com/termux/termux-packages.git upstream
           cd upstream
           git sparse-checkout set packages scripts ndk-patches root-packages x11-packages
+          mkdir -p root-packages x11-packages
           cp -r ../packages/* packages/
 
       - name: Build ${{ github.event.inputs.package }}
